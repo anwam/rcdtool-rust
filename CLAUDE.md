@@ -1,100 +1,50 @@
 # rcdtool-rust
 
-Rust rewrite of `rcdtool` — a CLI that downloads media from Telegram messages
-(including restricted/private channels you are a member of) via MTProto.
+Rust port of https://github.com/David256/rcdtool.
+Downloads Telegram media via MTProto (grammers), including restricted/private channels your account can access.
 
-The reference Python implementation lives at `../../src/rcdtool/` (Telethon-based).
-This crate ports it to Rust on top of **grammers** (pure-Rust MTProto client).
-
-## Build / test / run
+## Quick commands
 
 ```sh
-cd rust/rcdtool-rust
 cargo build
-cargo test          # 5 parser unit tests in src/utils.rs
+cargo test
 cargo run -- --help
 
-# dry run (no network, no auth): prints the planned output filenames
-cargo run -- -c ../../config.ini --link "https://t.me/c/1234567890/851" --dry-run
+# dry run (no auth/network download side-effects)
+cargo run -- -c config.ini --link "https://t.me/c/1234567890/851" --dry-run
 ```
 
-`config.ini` lives at the repo root (`../../config.ini`); pass it with `-c`.
+## Current status (2026-05-30)
 
-## Module layout
+Implemented:
+- Link parsing for standard links, `t.me/c/...`, and message ranges.
+- Discussion message support with `-D/--discussion-message-id`.
+- Discussion comment parsing from URL query (`?comment=101` and `?comment=101..105`).
+- `--link-file` input (`.txt`, one link per line, `#` comment lines ignored).
+- Legacy `.txt` ingestion through `--link` (semicolon-separated values still supported).
+- Default extension inference enabled (`--infer-extension` defaults to true).
+- Default output layout:
+  - No discussion ID: `download/{channel}/{batch_id}/{message-id}.{ext}`
+  - With discussion ID: `download/{channel}/{message-id}/{discussion-message-id}.{ext}`
+- Stable `batch_id` folder (8-hex hash derived from link/input batch key) to avoid collisions.
+- Concurrent downloads with `join_all`.
+- Dry-run mode prints planned output paths.
 
-- `main.rs` — `#[tokio::main]` entrypoint. Parses CLI, loads config, builds the
-  list of `(channel, message)` targets (`collect_targets`), allocates unique
-  output filenames, then runs all downloads concurrently via `join_all`.
-- `cli.rs` — clap `Arguments`. `parse_compat()` rewrites the legacy `-DM` flag
-  to `--discussion-message-id` before parsing (clap reserves single-dash longs).
-- `config.rs` — INI loader for `[Access]` (session, id, hash) and `[Client]`
-  (timeout, device_model, lang_code). `[Client]` fields are parsed for
-  compat but **not applied** — grammers 0.9 no longer exposes them via its
-  high-level client API (hence `#[allow(dead_code)]`).
-- `utils.rs` — pure parsing logic ported from `utils.py`:
-  `parse_channel_id` (numeric → `-100…` marked id, or `@username`),
-  `parse_message_id`, `parse_ranges` (`"1638,1639..1641"`),
-  `parse_targets_from_link` (handles `t.me/c/<id>/<topic>/<msg>` and plain links),
-  `generate_unique_filename` (adds `-1`, `-2`, … on collision; supports
-  `--detailed-name` and an exclude list for in-batch collisions).
-- `telegram.rs` — all grammers I/O: `connect` (SenderPool + spawn runner +
-  interactive login w/ 2FA), `resolve_peer` (username → resolve, numeric →
-  scan dialogs by `bot_api_dialog_id`), `download`, `apply_inferred_extension`.
-- `downloader.rs` — `Downloader` orchestrates per-target: resolve peer, fetch
-  message, download media, optionally infer+rename extension. In `--dry-run`
-  it skips all network access and just echoes the output filename.
+Not yet implemented:
+- Paid media handling (`MessageMediaPaidMedia` / extended media path in original Python tool).
+- Automated live integration test against Telegram (requires real credentials + interactive auth).
 
-## grammers 0.9 API notes (these bit me; pin to 0.9 semantics)
+## File map
 
-grammers 0.9 is a **major rework** vs older releases. Key facts:
+- `src/main.rs`: CLI flow, target expansion, batch hash generation, and request orchestration.
+- `src/cli.rs`: clap arguments and legacy `-DM` compatibility rewrite.
+- `src/utils.rs`: parsing helpers and output path helper.
+- `src/telegram.rs`: grammers connection/auth/peer resolution/download internals.
+- `src/downloader.rs`: per-target execution wrapper and local output directory prep.
+- `src/config.rs`: `config.ini` loader.
 
-- Deps: `grammers-client = { version = "0.9", features = ["fs"] }` (the `fs`
-  feature gates `Client::download_media`), `grammers-session = { version = "0.9",
-  features = ["sqlite-storage"] }` (feature is `sqlite-storage`, **not** `sqlite`).
-- Connect pattern (no more `Client::connect`/`Config`):
-  ```rust
-  let session = Arc::new(SqliteSession::open(path).await?);
-  let SenderPool { runner, handle, .. } = SenderPool::new(Arc::clone(&session), api_id);
-  let client = Client::new(handle);
-  tokio::spawn(runner.run());   // drives the connection; stops when handles drop
-  ```
-- `request_login_code(phone, api_hash)` takes **two** args (api_hash at login,
-  not at construction). `sign_in` returns `SignInError::PasswordRequired(token)`
-  for 2FA → `check_password(token, pwd)`. `user.first_name()` is `Option<&str>`.
-- `resolve_username` → `Option<Peer>`. To use a peer in requests you need a
-  `PeerRef` via `peer.to_ref().await` (`Option`, only Some if cached/usable).
-- Numeric private channels: grammers can only address chats already in your
-  session cache, so we scan `client.iter_dialogs()` and match
-  `dialog.peer().id().bot_api_dialog_id()` against the `-100…` marked id.
-- `client.get_messages_by_id(peer, &[id])` → `Vec<Option<Message>>`.
-  `message.media()` → `Option<Media>`; `client.download_media(&media, path)`.
-- Session is its own SQLite format (incompatible with Telethon). We use a
-  separate `<session-name>.grammers.session` file so we never clobber the
-  Python tool's session.
+## Important notes
 
-## Status (as of 2026-05-29)
-
-**Working & build/test-clean** (`cargo build`/`test` pass, no warnings):
-- CLI parity incl. legacy `-DM`.
-- INI config loading.
-- All parsing logic + 5 unit tests.
-- `--dry-run` end-to-end (verified: single link, range, `-C/-M` comma+range,
-  `-O` custom path, `--detailed-name`).
-- **Real Grammers integration**: connect, interactive login (phone/code/2FA),
-  session persistence, username + numeric-channel resolution, message fetch,
-  media download, `--infer-extension` rename.
-- **Discussion message download (`-DM`)**: calls `GetDiscussionMessage` raw TL
-  to find the linked discussion group, then fetches the specific message from
-  that group and downloads its media.
-
-**Not yet ported / TODO:**
-- Paid media (`MessageMediaPaidMedia` / `extended_media`) — Python handles it;
-  grammers 0.9 `Media::from_raw` returns `None` for `PaidMedia`, so it's skipped.
-- No live end-to-end test against real Telegram yet (needs real API creds +
-  interactive login). Only dry-run is exercised here.
-
-## Gotcha for future sessions
-
-The crate is at `rust/rcdtool-rust/` (NOT `rust/`). `cd` does not persist
-between Bash tool calls in this harness — use
-`cargo --manifest-path rust/rcdtool-rust/Cargo.toml …` or absolute paths.
+- `config.ini` is required (`-c config.ini` by default).
+- Grammers session is stored as `<session>.grammers.session` and is separate from Telethon sessions.
+- Numeric private channels can only be resolved if they exist in current account dialogs cache.
