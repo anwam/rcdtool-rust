@@ -35,7 +35,11 @@ pub async fn connect(config: &AppConfig) -> Result<Client> {
 }
 
 async fn authorize(client: &Client, api_hash: &str) -> Result<()> {
-    if client.is_authorized().await.context("checking authorization")? {
+    if client
+        .is_authorized()
+        .await
+        .context("checking authorization")?
+    {
         return Ok(());
     }
 
@@ -194,9 +198,17 @@ async fn resolve_discussion_message(
     let discussion_channel_id = match &linked_msg {
         tl::enums::Message::Message(m) => match &m.peer_id {
             tl::enums::Peer::Channel(pc) => pc.channel_id,
-            other => return Err(anyhow!("unexpected peer type in discussion message: {other:?}")),
+            other => {
+                return Err(anyhow!(
+                    "unexpected peer type in discussion message: {other:?}"
+                ));
+            }
         },
-        other => return Err(anyhow!("unexpected message type from discussion: {other:?}")),
+        other => {
+            return Err(anyhow!(
+                "unexpected message type from discussion: {other:?}"
+            ));
+        }
     };
 
     // Find the access_hash for that channel from the chats list.
@@ -215,12 +227,11 @@ async fn resolve_discussion_message(
             anyhow!("discussion channel {discussion_channel_id} not found in chats list")
         })?;
 
-    let discussion_peer = PeerRef::from(tl::enums::InputPeer::Channel(
-        tl::types::InputPeerChannel {
+    let discussion_peer =
+        PeerRef::from(tl::enums::InputPeer::Channel(tl::types::InputPeerChannel {
             channel_id: discussion_channel_id,
             access_hash,
-        },
-    ));
+        }));
 
     let msgs = client
         .get_messages_by_id(discussion_peer, &[discussion_message_id])

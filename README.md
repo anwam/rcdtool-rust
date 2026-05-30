@@ -12,6 +12,7 @@
 - **Structured output layout** — files are saved under `download/{channel}/{batch_id}/{message-id}.{ext}` (no-DM) or `download/{channel}/{message-id}/{dm-id}.{ext}` (with discussion ID) automatically, no `-O` flag needed
 - **Hash batch folder** — when downloading a range without a discussion ID, all files in the same batch share a stable 8-hex-char folder name derived from the link, preventing cross-batch collisions
 - **Extension inference on by default** — `--infer-extension` is enabled by default; downloaded files are automatically renamed with the correct extension
+- **Bounded concurrency** — downloads run with a default concurrency limit of `2`, configurable via `--concurrency`
 
 ## Prerequisites
 
@@ -64,6 +65,7 @@ Useful flags:
 - `-O, --output <FILE>`: output filename
 - `--infer-extension`: infer and rename the downloaded file extension (enabled by default)
 - `--detailed-name`: include channel and message IDs in the filename
+- `--concurrency <N>`: maximum number of downloads to run concurrently, default `2`
 - `--dry-run`: print planned filenames without downloading
 
 Link examples:

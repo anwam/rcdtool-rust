@@ -8,7 +8,7 @@ use std::path::Path;
 use std::time::Instant;
 
 use anyhow::Result;
-use futures::future::join_all;
+use futures::stream::{self, StreamExt};
 use tracing::{debug, info, warn};
 
 use cli::Arguments;
@@ -102,12 +102,20 @@ async fn run() -> Result<()> {
         requests.push(request);
     }
 
-    debug!(targets = requests.len(), "prepared download requests");
+    debug!(
+        targets = requests.len(),
+        concurrency = args.concurrency,
+        "prepared download requests"
+    );
     let start = Instant::now();
-    let futures = requests
-        .into_iter()
-        .map(|request| downloader.download_media(request));
-    let files = join_all(futures).await;
+    let files = stream::iter(
+        requests
+            .into_iter()
+            .map(|request| downloader.download_media(request)),
+    )
+    .buffer_unordered(args.concurrency)
+    .collect::<Vec<_>>()
+    .await;
 
     info!(
         elapsed_seconds = start.elapsed().as_secs_f64(),
@@ -343,6 +351,7 @@ mod tests {
             output_filename: None,
             infer_extension: false,
             detailed_name: false,
+            concurrency: 2,
             dry_run: true,
         };
 

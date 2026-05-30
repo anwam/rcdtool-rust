@@ -1,5 +1,17 @@
 use clap::Parser;
 
+fn parse_concurrency(value: &str) -> Result<usize, String> {
+    let concurrency = value
+        .parse::<usize>()
+        .map_err(|_| format!("invalid concurrency value: {value}"))?;
+
+    if concurrency == 0 {
+        return Err("concurrency must be at least 1".to_string());
+    }
+
+    Ok(concurrency)
+}
+
 /// Command line arguments for rcdtool-rust.
 #[derive(Debug, Clone, Parser)]
 #[command(
@@ -47,6 +59,10 @@ pub struct Arguments {
     /// Rename the file with channel and message IDs.
     #[arg(long, default_value_t = false)]
     pub detailed_name: bool,
+
+    /// Maximum number of downloads to run concurrently.
+    #[arg(long, default_value_t = 2, value_parser = parse_concurrency)]
+    pub concurrency: usize,
 
     /// Activate dry mode.
     #[arg(long, default_value_t = false)]

@@ -27,7 +27,7 @@ Implemented:
   - No discussion ID: `download/{channel}/{batch_id}/{message-id}.{ext}`
   - With discussion ID: `download/{channel}/{message-id}/{discussion-message-id}.{ext}`
 - Stable `batch_id` folder (8-hex hash derived from link/input batch key) to avoid collisions.
-- Concurrent downloads with `join_all`.
+- Concurrent downloads capped at 2 by default via `--concurrency`.
 - Dry-run mode prints planned output paths.
 
 Not yet implemented:
