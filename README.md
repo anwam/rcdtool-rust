@@ -68,8 +68,8 @@ Useful flags:
 
 Link examples:
 
-- `https://t.me/JustinWDUM2/25?comment=101`
-- `https://t.me/JustinWDUM2/25?comment=101..105`
+- `https://t.me/1234567890/25?comment=101`
+- `https://t.me/1234567890/25?comment=101..105`
 
 Default output layout (when `-O/--output` is not set):
 

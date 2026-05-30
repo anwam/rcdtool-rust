@@ -240,12 +240,12 @@ mod tests {
 
     #[test]
     fn parse_link_with_discussion_comment() {
-        let result = parse_target_spec_from_link("https://t.me/JustinWDUM2/25?comment=101")
+        let result = parse_target_spec_from_link("https://t.me/1234567890/25?comment=101")
             .expect("parse failed");
         assert_eq!(
             result,
             (
-                "JustinWDUM2".to_string(),
+                "1234567890".to_string(),
                 "25".to_string(),
                 Some("101".to_string())
             )
@@ -254,12 +254,12 @@ mod tests {
 
     #[test]
     fn parse_link_with_discussion_comment_range() {
-        let result = parse_target_spec_from_link("https://t.me/JustinWDUM2/25?comment=101..105")
+        let result = parse_target_spec_from_link("https://t.me/1234567890/25?comment=101..105")
             .expect("parse failed");
         assert_eq!(
             result,
             (
-                "JustinWDUM2".to_string(),
+                "1234567890".to_string(),
                 "25".to_string(),
                 Some("101..105".to_string())
             )
@@ -268,8 +268,8 @@ mod tests {
 
     #[test]
     fn default_output_path_uses_discussion_when_present() {
-        let result = default_output_path("JustinWDUM2", 25, Some(101), "ignored");
-        assert_eq!(result, "download/JustinWDUM2/25/101");
+        let result = default_output_path("1234567890", 25, Some(101), "ignored");
+        assert_eq!(result, "download/1234567890/25/101");
     }
 
     #[test]
