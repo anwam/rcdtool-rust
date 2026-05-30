@@ -2,6 +2,17 @@
 
 `rcdtool-rust` is a Rust CLI for downloading Telegram media from private or restricted channels via MTProto.
 
+> **Based on [rcdtool](https://github.com/David256/rcdtool) by [@David256](https://github.com/David256).**
+> This project is a full port of his Python/Telethon implementation to Rust using the [grammers](https://github.com/Lonami/grammers) MTProto client.
+
+### Additions over the original
+
+- **Batch link files** — pass a `.txt` file of links via `--link-file` (one URL per line, `#` comments supported)
+- **Discussion message ranges** — `?comment=101..105` in a link expands into individual download targets for each comment ID
+- **Structured output layout** — files are saved under `download/{channel}/{batch_id}/{message-id}.{ext}` (no-DM) or `download/{channel}/{message-id}/{dm-id}.{ext}` (with discussion ID) automatically, no `-O` flag needed
+- **Hash batch folder** — when downloading a range without a discussion ID, all files in the same batch share a stable 8-hex-char folder name derived from the link, preventing cross-batch collisions
+- **Extension inference on by default** — `--infer-extension` is enabled by default; downloaded files are automatically renamed with the correct extension
+
 ## Prerequisites
 
 - Rust toolchain (install from [rustup.rs](https://rustup.rs/))
